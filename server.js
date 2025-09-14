@@ -1,94 +1,72 @@
+// server.js
 require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
-const bodyParser = require("body-parser");
+const cors = require("cors");
 
 const app = express();
-app.use(bodyParser.json());
+app.use(cors());
+app.use(express.json());
 
-// 🔐 Env variables
-const {
-  CONSUMER_KEY,
-  CONSUMER_SECRET,
-  BUSINESS_SHORTCODE, // Till or Paybill shortcode (but we'll use PARTYB for till)
-  PARTYB,             // Till number
-  PASSKEY,
-  CALLBACK_URL,
-} = process.env;
-
-// 🌍 Use LIVE endpoint
-const DARAJA_BASE_URL = "https://api.safaricom.co.ke";
-
-// 1️⃣ Generate Access Token
-async function getAccessToken() {
-  const auth = Buffer.from(`${CONSUMER_KEY}:${CONSUMER_SECRET}`).toString("base64");
-  const res = await axios.get(
-    `${DARAJA_BASE_URL}/oauth/v1/generate?grant_type=client_credentials`,
-    { headers: { Authorization: `Basic ${auth}` } }
-  );
-  return res.data.access_token;
-}
-
-// 2️⃣ Generate STK Password
-function generatePassword() {
-  const timestamp = new Date().toISOString().replace(/[-:T.]/g, "").slice(0, 14);
-  const password = Buffer.from(BUSINESS_SHORTCODE + PASSKEY + timestamp).toString("base64");
-  return { password, timestamp };
-}
-
-// 3️⃣ STK Push Route
+// 🟢 STK Push Route
 app.post("/stkpush", async (req, res) => {
   try {
-    const { phone, amount, name } = req.body;
-    const token = await getAccessToken();
-    const { password, timestamp } = generatePassword();
+    const { phone, amount } = req.body;
 
-    const payload = {
-      BusinessShortCode: BUSINESS_SHORTCODE, // Used to create password
-      Password: password,
-      Timestamp: timestamp,
-      TransactionType: "CustomerBuyGoodsOnline", // ✅ Till transaction
-      Amount: amount,
-      PartyA: phone, // Customer number (2547XXXXXXXX)
-      PartyB: PARTYB, // ✅ Till number from .env
-      PhoneNumber: phone,
-      CallBackURL: CALLBACK_URL,
-      AccountReference: name || "Innovex",
-      TransactionDesc: `Payment by ${name || "Customer"}`,
-    };
+    // ✅ Generate access token
+    const auth = Buffer.from(
+      `${process.env.CONSUMER_KEY}:${process.env.CONSUMER_SECRET}`
+    ).toString("base64");
 
-    const response = await axios.post(
-      `${DARAJA_BASE_URL}/mpesa/stkpush/v1/processrequest`,
-      payload,
-      { headers: { Authorization: `Bearer ${token}` } }
+    const { data: tokenRes } = await axios.get(
+      "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
+      { headers: { Authorization: `Basic ${auth}` } }
+    );
+    const token = tokenRes.access_token;
+
+    // ✅ Timestamp + Password
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:T.]/g, "")
+      .slice(0, 14);
+
+    const password = Buffer.from(
+      process.env.BUSINESS_SHORTCODE + process.env.PASSKEY + timestamp
+    ).toString("base64");
+
+    // ✅ Send STK Push
+    const { data } = await axios.post(
+      "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+      {
+        BusinessShortCode: process.env.BUSINESS_SHORTCODE,
+        Password: password,
+        Timestamp: timestamp,
+        TransactionType: "CustomerBuyGoodsOnline", // Till Number
+        Amount: amount,
+        PartyA: phone, // customer
+        PartyB: process.env.TILL_NUMBER, // till number
+        PhoneNumber: phone,
+        CallBackURL: process.env.CALLBACK_URL,
+        AccountReference: "Innovex Payment",
+        TransactionDesc: "Payment"
+      },
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
     );
 
-    res.json({ success: true, message: "STK Push initiated", data: response.data });
+    res.json(data);
   } catch (err) {
-    console.error("❌ STK Push Error:", err.response?.data || err.message);
-    res.status(500).json({ success: false, error: err.response?.data || err.message });
+    console.error("❌ STK Error:", err.response?.data || err.message);
+    res.status(500).json({ error: "STK Push failed" });
   }
 });
 
-// 4️⃣ Callback Route
+// 🟢 Callback route
 app.post("/callback", (req, res) => {
-  const callbackData = req.body;
-  console.log("✅ M-PESA Callback Received:", JSON.stringify(callbackData, null, 2));
-
-  if (callbackData.Body.stkCallback.ResultCode === 0) {
-    const metadata = callbackData.Body.stkCallback.CallbackMetadata.Item;
-    const receipt = metadata.find(i => i.Name === "MpesaReceiptNumber").Value;
-    const amount = metadata.find(i => i.Name === "Amount").Value;
-    const phone = metadata.find(i => i.Name === "PhoneNumber").Value;
-    console.log(`💰 Payment Success: ${amount} from ${phone}, Receipt: ${receipt}`);
-  } else {
-    console.log("⚠️ Payment Failed:", callbackData.Body.stkCallback.ResultDesc);
-  }
-
-  // Respond to Safaricom (must be 200)
-  res.json({ ResultCode: 0, ResultDesc: "Callback received successfully" });
+  console.log("✅ Callback received:", JSON.stringify(req.body, null, 2));
+  res.json({ message: "Callback received" });
 });
 
-// 🚀 Start Server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server live on port ${PORT}`));
+// 🔑 Export Express app as Vercel serverless function
+module.exports = app;
