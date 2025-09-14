@@ -74,14 +74,14 @@
       });
     });
 
-    form.addEventListener("submit", (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       let phone = phoneInput.value.trim();
       let amount = amountInput.value.trim();
       let valid = true;
       let msg = "";
 
-      // Validate phone
+      // Phone validation
       if (!/^0\d{9}$/.test(phone)) {
         msg = "❌ Enter a valid phone number (07XXXXXXXX)";
         valid = false;
@@ -89,7 +89,7 @@
         phone = "254" + phone.slice(1); // format for backend
       }
 
-      // Validate amount (whole number only)
+      // Amount validation (whole number only)
       if (!/^\d+$/.test(amount)) {
         msg = "❌ Amount must be a whole number";
         valid = false;
@@ -100,29 +100,29 @@
         return;
       }
 
-      // ✅ Send payload to backend
+      // ✅ Send payload to Vercel backend
       const payload = {
         name: nameInput.value.trim(),
         phone,
         amount: parseInt(amount, 10)
       };
-      console.log("Sending to backend:", payload);
 
-      showAlert("✅ Processing your payment...", "bg-green-100 text-green-700 border border-green-300");
+      showAlert("⏳ Processing your payment...", "bg-yellow-100 text-yellow-700 border border-yellow-300");
 
-      fetch("https://raphachegekamunusupport.vercel.app/api/stkpush", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(data => {
+      try {
+        const res = await fetch("/api/stkpush", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        console.log("STK Push response:", data);
+
         showAlert("✅ Payment request sent. Check your phone.", "bg-green-100 text-green-700 border border-green-300");
-      })
-      .catch(err => {
-        showAlert("❌ Something went wrong. Try again.", "bg-red-100 text-red-700 border border-red-300");
+      } catch (err) {
         console.error(err);
-      });
+        showAlert("❌ Something went wrong. Try again.", "bg-red-100 text-red-700 border border-red-300");
+      }
     });
 
     function showAlert(message, classes) {
