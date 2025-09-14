@@ -8,52 +8,40 @@
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen px-4">
   <div class="bg-white shadow-xl rounded-2xl p-6 sm:p-8 w-full max-w-md border">
-    <!-- Header -->
     <div class="text-center mb-6">
       <img src="innovexLogo.jpg" alt="Innovex Logo" class="mx-auto h-14 mb-3">
       <h2 class="text-2xl font-bold text-gray-800">Secure Payment</h2>
       <p class="text-gray-500 text-sm">Complete the form to proceed</p>
     </div>
 
-    <!-- Alerts -->
     <div id="alertBox" class="hidden mb-4 p-3 rounded-lg text-sm font-medium"></div>
 
-    <!-- Form -->
     <form id="paymentForm" class="space-y-5">
-      <!-- Name -->
       <div>
         <label class="block mb-1 text-sm font-medium text-gray-700">Full Name</label>
         <div class="flex items-center border rounded-lg px-3">
           <span class="text-gray-400 mr-2">👤</span>
-          <input type="text" id="name" placeholder="John Doe"
-            class="w-full py-2 outline-none text-sm sm:text-base" required>
+          <input type="text" id="name" placeholder="John Doe" class="w-full py-2 outline-none text-sm sm:text-base" required>
         </div>
       </div>
 
-      <!-- Phone -->
       <div>
         <label class="block mb-1 text-sm font-medium text-gray-700">Phone Number</label>
         <div class="flex items-center border rounded-lg px-3">
           <span class="text-gray-400 mr-2">📱</span>
-          <input type="tel" id="phone" placeholder="07XXXXXXXX"
-            class="w-full py-2 outline-none text-sm sm:text-base" required>
+          <input type="tel" id="phone" placeholder="07XXXXXXXX" class="w-full py-2 outline-none text-sm sm:text-base" required>
         </div>
       </div>
 
-      <!-- Amount -->
       <div>
         <label class="block mb-1 text-sm font-medium text-gray-700">Amount (KES)</label>
         <div class="flex items-center border rounded-lg px-3">
           <span class="text-gray-400 mr-2">💰</span>
-          <input type="number" id="amount" placeholder="100"
-            class="w-full py-2 outline-none text-sm sm:text-base" required>
+          <input type="number" id="amount" placeholder="100" class="w-full py-2 outline-none text-sm sm:text-base" required>
         </div>
       </div>
 
-      <!-- Pay Button -->
-      <button type="submit" id="payBtn"
-        class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
-        disabled>
+      <button type="submit" id="payBtn" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
         Pay Now
       </button>
     </form>
@@ -67,7 +55,7 @@
     const payBtn = document.getElementById("payBtn");
     const alertBox = document.getElementById("alertBox");
 
-    // Enable/disable button live
+    // Enable/disable button
     [phoneInput, amountInput, nameInput].forEach(input => {
       input.addEventListener("input", () => {
         payBtn.disabled = !nameInput.value || !phoneInput.value || !amountInput.value;
@@ -76,20 +64,19 @@
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+
       let phone = phoneInput.value.trim();
       let amount = amountInput.value.trim();
       let valid = true;
       let msg = "";
 
-      // Phone validation
       if (!/^0\d{9}$/.test(phone)) {
         msg = "❌ Enter a valid phone number (07XXXXXXXX)";
         valid = false;
       } else {
-        phone = "254" + phone.slice(1); // format for backend
+        phone = "254" + phone.slice(1); // convert for backend
       }
 
-      // Amount validation (whole number only)
       if (!/^\d+$/.test(amount)) {
         msg = "❌ Amount must be a whole number";
         valid = false;
@@ -100,14 +87,17 @@
         return;
       }
 
-      // ✅ Send payload to Vercel backend
       const payload = {
         name: nameInput.value.trim(),
         phone,
         amount: parseInt(amount, 10)
       };
 
-      showAlert("⏳ Processing your payment...", "bg-yellow-100 text-yellow-700 border border-yellow-300");
+      // 🔹 Show loading state
+      payBtn.disabled = true;
+      const originalText = payBtn.textContent;
+      payBtn.textContent = "Processing... ⏳";
+      showAlert("⏳ Sending payment request...", "bg-yellow-100 text-yellow-700 border border-yellow-300");
 
       try {
         const res = await fetch("/api/stkpush", {
@@ -115,13 +105,21 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
+
         const data = await res.json();
         console.log("STK Push response:", data);
 
-        showAlert("✅ Payment request sent. Check your phone.", "bg-green-100 text-green-700 border border-green-300");
+        if (res.ok && data.CheckoutRequestID) {
+          showAlert(`✅ Payment request sent! Check your phone.`, "bg-green-100 text-green-700 border border-green-300");
+        } else {
+          showAlert(`❌ Payment failed: ${data.error || "Unknown error"}`, "bg-red-100 text-red-700 border border-red-300");
+        }
       } catch (err) {
         console.error(err);
         showAlert("❌ Something went wrong. Try again.", "bg-red-100 text-red-700 border border-red-300");
+      } finally {
+        payBtn.disabled = false;
+        payBtn.textContent = originalText;
       }
     });
 
