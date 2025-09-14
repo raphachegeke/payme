@@ -1,5 +1,7 @@
-export default function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
+module.exports = function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
 
   const callbackData = req.body;
   console.log("✅ M-PESA Callback Received:", JSON.stringify(callbackData, null, 2));
@@ -16,4 +18,4 @@ export default function handler(req, res) {
   }
 
   res.status(200).json({ ResultCode: 0, ResultDesc: "Callback received successfully" });
-}
+};
