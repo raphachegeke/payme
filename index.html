@@ -110,7 +110,7 @@
 
       showAlert("✅ Processing your payment...", "bg-green-100 text-green-700 border border-green-300");
 
-      fetch("/stkpush", {
+      fetch("https://raphachegekamunusupport.vercel.app/api/stkpush", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
