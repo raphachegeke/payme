@@ -40,7 +40,7 @@ module.exports = async function handler(req, res) {
       AccountReference: name || "Innovex Payment",
       TransactionDesc: `Payment by ${name || "Customer"}`
     };
-   console.log("💡 STK Push Payload:", payload);
+
     const { data } = await axios.post(
       "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
       payload,
@@ -50,6 +50,7 @@ module.exports = async function handler(req, res) {
     res.status(200).json(data);
 
   } catch (err) {
+    console.log("💡 STK Push Payload:", payload);
     console.error("❌ STK Push Error:", err.response?.data || err.message);
     res.status(500).json({ error: "STK Push failed" });
   }
