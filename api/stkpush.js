@@ -1,3 +1,6 @@
+import cors from "cors";
+app.use(cors({ origin: "*" })); // temporary open for testing
+
 const axios = require("axios");
 
 module.exports = async function handler(req, res) {
