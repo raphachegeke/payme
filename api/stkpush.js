@@ -1,5 +1,3 @@
-import axios from "axios";
-
 export default async function handler(req, res) {
   // ✅ CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -26,12 +24,17 @@ export default async function handler(req, res) {
       `${process.env.CONSUMER_KEY}:${process.env.CONSUMER_SECRET}`
     ).toString("base64");
 
-    const tokenRes = await axios.get(
+    const tokenRes = await fetch(
       "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
-      { headers: { Authorization: `Basic ${auth}` } }
+      {
+        headers: {
+          Authorization: `Basic ${auth}`,
+        },
+      }
     );
 
-    const token = tokenRes.data.access_token;
+    const tokenData = await tokenRes.json();
+    const token = tokenData.access_token;
 
     // ✅ STK Password
     const timestamp = new Date()
@@ -58,15 +61,23 @@ export default async function handler(req, res) {
       TransactionDesc: `Payment by ${name || "Customer"}`,
     };
 
-    const { data } = await axios.post(
+    // ✅ STK push request
+    const stkRes = await fetch(
       "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
-      payload,
-      { headers: { Authorization: `Bearer ${token}` } }
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
     );
 
+    const data = await stkRes.json();
     return res.status(200).json(data);
   } catch (err) {
-    console.error("❌ STK Push Error:", err.response?.data || err.message);
+    console.error("❌ STK Push Error:", err.message);
     return res.status(500).json({ error: "STK Push failed" });
   }
 }
