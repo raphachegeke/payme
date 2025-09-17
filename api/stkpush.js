@@ -1,15 +1,25 @@
-import cors from "cors";
-app.use(cors({ origin: "*" })); // temporary open for testing
+import axios from "axios";
 
-const axios = require("axios");
+export default async function handler(req, res) {
+  // ✅ CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-module.exports = async function handler(req, res) {
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
   try {
     const { phone, amount, name } = req.body;
+
+    if (!phone || !amount) {
+      return res.status(400).json({ error: "Phone and amount are required" });
+    }
 
     // ✅ Generate access token
     const auth = Buffer.from(
@@ -24,7 +34,11 @@ module.exports = async function handler(req, res) {
     const token = tokenRes.data.access_token;
 
     // ✅ STK Password
-    const timestamp = new Date().toISOString().replace(/[-:T.]/g, "").slice(0, 14);
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:T.]/g, "")
+      .slice(0, 14);
+
     const password = Buffer.from(
       process.env.BUSINESS_SHORTCODE + process.env.PASSKEY + timestamp
     ).toString("base64");
@@ -41,7 +55,7 @@ module.exports = async function handler(req, res) {
       PhoneNumber: phone,
       CallBackURL: process.env.CALLBACK_URL,
       AccountReference: name || "Innovex Payment",
-      TransactionDesc: `Payment by ${name || "Customer"}`
+      TransactionDesc: `Payment by ${name || "Customer"}`,
     };
 
     const { data } = await axios.post(
@@ -50,11 +64,9 @@ module.exports = async function handler(req, res) {
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    res.status(200).json(data);
-
+    return res.status(200).json(data);
   } catch (err) {
-    console.log("💡 STK Push Payload:", payload);
     console.error("❌ STK Push Error:", err.response?.data || err.message);
-    res.status(500).json({ error: "STK Push failed" });
+    return res.status(500).json({ error: "STK Push failed" });
   }
-};
+}
