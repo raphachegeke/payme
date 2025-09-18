@@ -54,7 +54,7 @@ export default async function handler(req, res) {
       TransactionType: "CustomerBuyGoodsOnline",
       Amount: amount,
       PartyA: phone,
-      PartyB: process.env.TILL_NUMBER,
+      PartyB: 6221926,
       PhoneNumber: phone,
       CallBackURL: process.env.CALLBACK_URL,
       AccountReference: name || "Innovex Payment",
