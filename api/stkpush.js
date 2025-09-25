@@ -124,7 +124,7 @@ export default async function handler(req, res) {
       await sms.send({
         to: phone,
         message: `✅ Payment received!\nAmount: KES ${amount}\nReceipt: ${receipt}\nThank you for your support.`,
-        from: "Career Buddy",
+        // from: "Career Buddy",
       });
 
       console.log(`✅ SMS sent to ${phone} for KES ${amount}, Receipt ${receipt}`);
