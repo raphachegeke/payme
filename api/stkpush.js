@@ -99,39 +99,32 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log("📩 M-PESA Callback:", JSON.stringify(req.body, null, 2));
+    console.log("📩 Callback Payload:", JSON.stringify(req.body, null, 2));
 
-    const callback = req.body.Body.stkCallback;
+    const { sponsor, phone, student, amount } = req.body;
 
-    if (callback.ResultCode === 0) {
-      const items = callback.CallbackMetadata.Item;
-
-      const amount = items.find((i) => i.Name === "Amount")?.Value;
-      let phone = items.find((i) => i.Name === "PhoneNumber")?.Value;
-      const receipt = items.find((i) => i.Name === "MpesaReceiptNumber")?.Value;
-
-      // 🔹 Normalize phone number
-      phone = String(phone);
-      if (phone.startsWith("0")) {
-        phone = "+254" + phone.slice(1);
-      } else if (phone.startsWith("254")) {
-        phone = "+" + phone;
-      } else if (!phone.startsWith("+")) {
-        phone = "+254" + phone;
-      }
-
-      // ✅ Send SMS with receipt number
-      await sms.send({
-        to: phone,
-        message: `✅ Payment received!\nAmount: KES ${amount}\nReceipt: ${receipt}\nThank you for your support.`,
-        // from: "Career Buddy",
-      });
-
-      console.log(`✅ SMS sent to ${phone} for KES ${amount}, Receipt ${receipt}`);
-    } else {
-      console.log("❌ Payment failed:", callback.ResultDesc);
+    if (!phone || !amount || !student) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
+    // 🔹 Normalize phone number
+    let normalizedPhone = String(phone);
+    if (normalizedPhone.startsWith("0")) {
+      normalizedPhone = "+254" + normalizedPhone.slice(1);
+    } else if (normalizedPhone.startsWith("254")) {
+      normalizedPhone = "+" + normalizedPhone;
+    } else if (!normalizedPhone.startsWith("+")) {
+      normalizedPhone = "+254" + normalizedPhone;
+    }
+
+    // ✅ Send SMS
+    await sms.send({
+      to: normalizedPhone,
+      message: `✅ Hi ${sponsor}, your payment of KES ${amount} for ${student} was received. Thank you for your support!`,
+      from: "Career Buddy",
+    });
+
+    console.log(`✅ SMS sent to ${normalizedPhone}`);
     res.json({ status: "ok" });
   } catch (err) {
     console.error("❌ Callback Error:", err.message);
