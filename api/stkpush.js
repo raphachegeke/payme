@@ -120,7 +120,7 @@ export default async function handler(req, res) {
     await sms.send({
       to: normalizedPhone,
       message: `✅ Hi ${sponsor}, your payment of KES ${amount} for ${student} was received. Thank you for your support!`,
-      from: "Career Buddy",
+      // from: "Career Buddy",
     });
 
     console.log(`✅ SMS sent to ${normalizedPhone}`);
