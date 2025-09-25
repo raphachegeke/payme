@@ -83,7 +83,6 @@
 // }
 
 
-// pages/api/callback.js
 import Africastalking from "africastalking";
 
 const AT = Africastalking({
@@ -99,7 +98,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log("📩 Callback Payload:", JSON.stringify(req.body, null, 2));
+    console.log("📩 M-PESA Callback:", JSON.stringify(req.body, null, 2));
 
     const { sponsor, phone, student, amount } = req.body;
 
@@ -107,7 +106,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // 🔹 Normalize phone number
+    // 🔹 Normalize phone
     let normalizedPhone = String(phone);
     if (normalizedPhone.startsWith("0")) {
       normalizedPhone = "+254" + normalizedPhone.slice(1);
