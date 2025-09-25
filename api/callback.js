@@ -42,16 +42,28 @@ export default async function handler(req, res) {
     const callback = req.body.Body.stkCallback;
 
     if (callback.ResultCode === 0) {
-      // ✅ Success
       const items = callback.CallbackMetadata.Item;
       const amount = items.find((i) => i.Name === "Amount")?.Value;
-      const phone = items.find((i) => i.Name === "PhoneNumber")?.Value;
+      let phone = items.find((i) => i.Name === "PhoneNumber")?.Value;
 
-      // Send SMS via Africa's Talking
+      // 🔹 Normalize phone numbers
+      phone = String(phone);
+      if (phone.startsWith("0")) {
+        // from frontend: 07XXXXXXXX → +2547XXXXXXXX
+        phone = "+254" + phone.slice(1);
+      } else if (phone.startsWith("254")) {
+        // from Safaricom: 2547XXXXXXXX → +2547XXXXXXXX
+        phone = "+" + phone;
+      } else if (!phone.startsWith("+")) {
+        // fallback safety
+        phone = "+254" + phone;
+      }
+
+      // ✅ Send SMS
       await sms.send({
         to: phone,
         message: `Thank you! Your sponsorship of KES ${amount} has been received successfully.`,
-        // from: "Career Buddy",
+        from: "Career Buddy",
       });
 
       console.log(`✅ SMS sent to ${phone} for KES ${amount}`);
@@ -59,7 +71,7 @@ export default async function handler(req, res) {
       console.log("❌ Payment failed:", callback.ResultDesc);
     }
 
-    res.json({ status: "ok" }); // Always respond to Safaricom
+    res.json({ status: "ok" });
   } catch (err) {
     console.error("❌ Callback Error:", err.message);
     res.status(500).json({ error: "Callback handling failed" });
